@@ -1,5 +1,6 @@
 
 
+using Boerman.AprsClient;
 using Meshtastic.Protobufs;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.SignalR;
@@ -16,6 +17,7 @@ public class MqttMessagesModel : PageModel
 {
     private static IMqttClient _mqttClient;
     private static List<string> _messages = new List<string>();
+    private static Listener _listener;
     private readonly IHubContext<MqttHub> _hubContext;
 
     public MqttMessagesModel(IHubContext<MqttHub> hubContext)
@@ -35,6 +37,17 @@ public class MqttMessagesModel : PageModel
 
         // Display the list of messages in the page
         Messages = _messages;
+
+        _listener = new Listener();
+
+        
+        _listener.PacketReceived += (sender, packet) =>
+        {
+            var message = packet.ToString();
+            _messages.Add($"APRS {message}");
+            _hubContext.Clients.All.SendAsync("ReceiveMessage", message);
+        };  
+
     }
 
     // Connect to the MQTT broker and subscribe to the topic
@@ -95,13 +108,15 @@ public class MqttMessagesModel : PageModel
 
         _mqttClient.ApplicationMessageReceivedAsync += e =>
         {
-            var message = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
+            var message = "Unknown message.";
 
             // decode it
             try
             {
-                var packet = Meshtastic.Protobufs.ServiceEnvelope.Parser.ParseFrom(e.ApplicationMessage.Payload);
 
+                var packet = Meshtastic.Protobufs.ServiceEnvelope.Parser.ParseFrom(e.ApplicationMessage.Payload);
+                message = packet.ToString();
+                message = packet.Packet.Decoded.Portnum.ToString() + message;
                 switch (packet.Packet.Decoded.Portnum)
                 {
                     case PortNum.NodeinfoApp:
@@ -113,11 +128,23 @@ public class MqttMessagesModel : PageModel
                         var textMessage = Meshtastic.Protobufs.Data.Parser.ParseFrom(packet.Packet.Decoded.Payload);
                         message = $"TextMessage: {textMessage.Payload.ToString()}";
                         break;
-                    
+
+                    case PortNum.PositionApp:
+                        var position = Meshtastic.Protobufs.Position.Parser.ParseFrom(packet.Packet.Decoded.Payload);
+                        message = $"Position: {position.LatitudeI}, {position.LongitudeI}";
+                        break;
+
+                    case PortNum.NeighborinfoApp:
+                        var neighborInfo = Meshtastic.Protobufs.NeighborInfo.Parser.ParseFrom(packet.Packet.Decoded.Payload);
+                        message = $"NeighborInfo: {neighborInfo.NodeId} {string.Join(",", neighborInfo.Neighbors.ToList())}";
+                        break;
+                    case PortNum.TelemetryApp:
+                        var telemetry = Telemetry.Parser.ParseFrom(packet.Packet.Decoded.Payload);
+                        message = $"Telemetry: press {telemetry.EnvironmentMetrics.BarometricPressure} temp: {telemetry.EnvironmentMetrics.Temperature}";
+                        break;  
+
                 }
-
-
-                message = packet.ToString();
+                message = packet.Packet.Decoded.Portnum.ToString() + message;
             }
             catch (Exception ex)
             {
@@ -126,7 +153,6 @@ public class MqttMessagesModel : PageModel
 
             // Add the message to the list
             _messages.Add(message);
-
             // Broadcast the message to all clients via SignalR
             _hubContext.Clients.All.SendAsync("ReceiveMessage", message);
 
