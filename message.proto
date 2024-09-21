@@ -1,0 +1,7 @@
+﻿syntax = "proto3";
+
+message YourMessage {
+    string field1 = 1;
+    int32 field2 = 2;
+    // Add more fields as needed
+}

@@ -1,0 +1,38 @@
+﻿@page
+@model MqttMessagesModel
+@{
+    ViewData["Title"] = "MQTT Messages";
+}
+
+<h2>MQTT Messages for Topic: msh/bdars/2/e/LongFast</h2>
+
+<div>
+    <h4>Received Messages:</h4>
+    <ul id="messagesList">
+        @foreach (var message in Model.Messages)
+        {
+            <li>@message</li>
+        }
+    </ul>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/3.1.18/signalr.min.js"></script>
+<script type="text/javascript">
+    // Set up connection to SignalR Hub
+    const connection = new signalR.HubConnectionBuilder().withUrl("/mqtthub").build();
+
+    // Start the connection and listen for messages
+    connection.start().then(() => {
+        console.log("SignalR Connected.");
+    }).catch(err => console.error(err.toString()));
+
+    // Listen for incoming messages
+    connection.on("ReceiveMessage", function (message) {
+        // Append new messages to the list
+        var ul = document.getElementById("messagesList");
+        var li = document.createElement("li");
+        li.textContent = message;
+        ul.appendChild(li);
+    });
+</script>
