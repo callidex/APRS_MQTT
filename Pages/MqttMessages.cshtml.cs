@@ -63,32 +63,6 @@ public class MqttMessagesModel : PageModel
             .WithCleanSession()
             .Build();
 
-        //// Set up event handler for receiving messages
-        //_mqttClient.UseConnectedHandler(async e =>
-        //    {
-        //        Console.WriteLine("Connected successfully with MQTT Broker.");
-        //               //        // Subscribe to the topic
-        //        await _mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("msh/bdars/2/e/LongFast").Build());
-        //        Console.WriteLine("Subscribed to topic msh/bdars/2/e/LongFast");
-        //    });
-
-        //_mqttClient.UseDisconnectedHandler(e =>
-        //{
-        //    Console.WriteLine("Disconnected from MQTT Broker.");
-        //});
-
-        //_mqttClient.UseApplicationMessageReceivedHandler(async e =>
-        //{
-        //    var message = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
-        //    Console.WriteLine($"Received message: {message}");
-
-        //    // Add the message to the list
-        //    _messages.Add(message);
-
-        //    // Broadcast the message to all clients via SignalR
-        //    await _hubContext.Clients.All.SendAsync("ReceiveMessage", message);
-        //});
-
 
         // Connect to the broker
         
@@ -104,7 +78,7 @@ public class MqttMessagesModel : PageModel
             _hubContext.Clients.All.SendAsync("ReceiveMessage", message);
             await _mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic(topic).Build());
         };
-        
+
 
         _mqttClient.ApplicationMessageReceivedAsync += e =>
         {
@@ -120,9 +94,7 @@ public class MqttMessagesModel : PageModel
                 switch (packet.Packet.Decoded.Portnum)
                 {
                     case PortNum.NodeinfoApp:
-                        var nodeInfo = NodeInfo.Parser.ParseFrom(packet.Packet.Decoded.Payload);
-                        message = $"NodeInfo: {nodeInfo.Position.LatitudeI}, {nodeInfo.Position.LongitudeI}";
-                        break;
+                        message = NodeInfoReport(packet); break;
 
                     case PortNum.TextMessageApp:
                         var textMessage = Meshtastic.Protobufs.Data.Parser.ParseFrom(packet.Packet.Decoded.Payload);
@@ -130,9 +102,7 @@ public class MqttMessagesModel : PageModel
                         break;
 
                     case PortNum.PositionApp:
-                        var position = Meshtastic.Protobufs.Position.Parser.ParseFrom(packet.Packet.Decoded.Payload);
-                        message = $"Position: {position.LatitudeI}, {position.LongitudeI}";
-                        break;
+                        message = PositionReport(packet); break;
 
                     case PortNum.NeighborinfoApp:
                         var neighborInfo = Meshtastic.Protobufs.NeighborInfo.Parser.ParseFrom(packet.Packet.Decoded.Payload);
@@ -141,10 +111,19 @@ public class MqttMessagesModel : PageModel
                     case PortNum.TelemetryApp:
                         var telemetry = Telemetry.Parser.ParseFrom(packet.Packet.Decoded.Payload);
                         message = $"Telemetry: press {telemetry.EnvironmentMetrics.BarometricPressure} temp: {telemetry.EnvironmentMetrics.Temperature}";
-                        break;  
-
+                        break;
+                    case PortNum.TextMessageCompressedApp:
+                        var textMessageCompressed = Meshtastic.Protobufs.Data.Parser.ParseFrom(packet.Packet.Decoded.Payload);
+                        message = $"TextMessageCompressed: {textMessageCompressed.Payload.ToString()}";
+                        break;
+                    case PortNum.WaypointApp:
+                        var waypoint = Waypoint.Parser.ParseFrom(packet.Packet.Decoded.Payload);
+                        message = $"Waypoint: {waypoint.LatitudeI}, {waypoint.LongitudeI}";
+                        break;
+                    default:
+                        message = $"Unhandled: " + message ;
+                        break;
                 }
-                message = packet.Packet.Decoded.Portnum.ToString() + message;
             }
             catch (Exception ex)
             {
@@ -174,13 +153,29 @@ public class MqttMessagesModel : PageModel
 
 
         var message = new MqttApplicationMessageBuilder()
-                .WithTopic(topic)
+                .WithTopic("msh/bdars/2/e/LongFast/!bridge")
                 .WithPayload($"APRS bridge sign in {DateTime.Now:hh-mm-ss}")
                 .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
                 .WithRetainFlag()
         .Build();
 
-//        await _mqttClient.PublishAsync(message);
+        await _mqttClient.PublishAsync(message);
 
+    }
+
+    private static string PositionReport(ServiceEnvelope packet)
+    {
+        string message;
+        var position = Meshtastic.Protobufs.Position.Parser.ParseFrom(packet.Packet.Decoded.Payload);
+        message = $"Position: {position.LatitudeI}, {position.LongitudeI} {position.Altitude} {position.SatsInView} ch: {packet.ChannelId} {packet.Packet.From}";
+        return message;
+    }
+
+    private static string NodeInfoReport(ServiceEnvelope packet)
+    {
+        string message;
+        var nodeInfo = NodeInfo.Parser.ParseFrom(packet.Packet.Decoded.Payload);
+        message = $"NodeInfo: {nodeInfo.Position.LatitudeI}, {nodeInfo.Position.LongitudeI}";
+        return message;
     }
 }
