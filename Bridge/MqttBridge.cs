@@ -64,30 +64,24 @@ public class MqttBridge
         MqttClient.ApplicationMessageReceivedAsync += e =>
         {
             var message = "Unknown message.";
-            Console.WriteLine(e.ApplicationMessage.Topic);
-
             // decode it
             try
             {
                 var packet = Meshtastic.Protobufs.ServiceEnvelope.Parser.ParseFrom(e.ApplicationMessage.PayloadSegment);
-                Console.WriteLine(packet.ToString());
                 if (packet?.Packet.Decoded != null)
                 {
                     switch (packet.Packet.Decoded.Portnum)
                     {
                         case PortNum.NodeinfoApp:
-                            Console.WriteLine("NodeInfoApp");
                             NodeInfoReport(packet);
                             DumpInfo();
                             break;
                         case PortNum.PositionApp:
-                            Console.WriteLine("PositionReport");
                             PositionReport(packet);
                             DumpInfo();
                             break;
 
                         default:
-                            Console.WriteLine($"Unhandled packet {packet.Packet.Decoded.Portnum}");
                             break;
                     }
                 }
@@ -107,7 +101,6 @@ public class MqttBridge
             catch (InvalidProtocolBufferException ex)
             {
                 message = "Invalid protocol message: " + ex.Message;
-                Console.WriteLine(message);
             }
             catch (Exception ex)
             {
@@ -117,7 +110,6 @@ public class MqttBridge
                     var innerMessage = ex.InnerException.Message;
                     message += " Inner Exception: " + innerMessage;
                 }
-                Console.WriteLine(message);
             }
 
 
@@ -136,13 +128,6 @@ public class MqttBridge
 
     private void DumpInfo()
     {
-        Console.WriteLine("Positions:");
-        foreach (var position in positions)
-        {
-            Console.WriteLine($"  {position.Position.LatitudeI}, {position.Position.LongitudeI} {position.From.ToString("X")}");
-        }
-
-        Console.WriteLine("NodeInfos:");
         foreach (var serviceEnvelope in nodeInfos)
         {
             MeshPacket mp = serviceEnvelope.Packet;
@@ -150,7 +135,6 @@ public class MqttBridge
             var user = Meshtastic.Protobufs.User.Parser.ParseFrom(data.Payload);
             if (user != null)
             {
-                Console.WriteLine($"  {user.Id} {user.LongName} from {serviceEnvelope.Packet.From.ToString("X")}");
                 var position = Position.Parser.ParseFrom(data.Payload);
                 if (position != null)
                 {
@@ -160,10 +144,7 @@ public class MqttBridge
                         Console.WriteLine($" MATCH  {user.Id} {user.LongName}  {matchedPosition.Position.LatitudeI}, {matchedPosition.Position.LongitudeI}");
                     }
                 }
-
             }
-
-            Console.WriteLine("SE: " + serviceEnvelope.Packet.Decoded.Payload.ToString());
         }
     }
 
