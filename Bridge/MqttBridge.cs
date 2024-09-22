@@ -8,7 +8,9 @@ using MQTTnet.Protocol;
 using MQTTnet.Server;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
+using Google.Protobuf;
 
 public class PositionInfo
 {
@@ -69,7 +71,7 @@ public class MqttBridge
             {
                 var packet = Meshtastic.Protobufs.ServiceEnvelope.Parser.ParseFrom(e.ApplicationMessage.PayloadSegment);
                 Console.WriteLine(packet.ToString());
-                if(packet.Packet.Decoded!=null)
+                if(packet?.Packet.Decoded!=null)
                 { 
                 switch (packet.Packet.Decoded.Portnum)
                 {
@@ -92,8 +94,20 @@ public class MqttBridge
                 else
                 {
                     Console.WriteLine($"Encrypted packet from {packet.Packet.From.ToString("X")}");
+
+                    string psk = "1PG7OiApB1nwvP+rz05pAQ==";
+                    var dec = DecryptMeshtasticPayload(packet.Packet.Encrypted.ToByteArray(), Encoding.ASCII.GetBytes(psk) , new byte[16]);
+                    Console.WriteLine(dec);
+                    
                 }
 
+
+
+            }
+            catch (InvalidProtocolBufferException ex)
+            {
+                message = "Invalid protocol message: " + ex.Message;
+                Console.WriteLine(message);
             }
             catch (Exception ex)
             {
@@ -131,7 +145,27 @@ public class MqttBridge
         Console.WriteLine("NodeInfos:");
         foreach (var serviceEnvelope in nodeInfos)
         {
-            Console.WriteLine("NODE INFO ON " + serviceEnvelope.ChannelId);
+            MeshPacket mp = serviceEnvelope.Packet;
+            Data data = mp.Decoded;
+            Console.WriteLine($"  {data.Portnum} {data.Payload.Length}");   
+
+            
+
+//
+//            SerializeDelimitedToStream
+
+            var ni = NodeInfo.Parser.ParseFrom(data.Payload);
+            if (ni != null)
+            {
+                Console.WriteLine($"  {ni.User.Id} {ni.User.LongName} {serviceEnvelope.Packet.From.ToString("X")}");
+            }
+            else
+            {
+                Console.WriteLine("  NodeInfo is null");
+            }
+
+
+           Console.WriteLine("NODE INFO ON " + serviceEnvelope.ChannelId);
             Console.WriteLine("NODE INFO ON FROM " + serviceEnvelope.Packet.From.ToString("X"));
             try
             {
@@ -165,6 +199,45 @@ public class MqttBridge
                 new StringBuilder(),
                 (sb, pair) => sb.AppendLine($"{pair.Name}: {pair.Value}"),
                 sb => sb.ToString());
+    }
+
+    public static byte[] DecryptMeshtasticPayload(byte[] ciphertext, byte[] key, byte[] iv)
+    {
+        try
+        {
+            using (Aes aesAlg = Aes.Create())
+            {
+                aesAlg.Key = key;
+                aesAlg.IV = iv;
+
+                // Set AES-256 properties
+                aesAlg.Mode = CipherMode.CBC;  // Meshtastic uses CBC mode
+                aesAlg.Padding = PaddingMode.PKCS7;  // Common padding mode
+
+                // Create a decryptor to perform the stream transform.
+                ICryptoTransform decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
+
+                // Create the streams used for decryption.
+                using (MemoryStream msDecrypt = new MemoryStream(ciphertext))
+                {
+                    using (CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
+                    {
+                        using (StreamReader srDecrypt = new StreamReader(csDecrypt))
+                        {
+                            // Read the decrypted bytes from the decrypting stream
+                            // and place them into a string.
+                            var decryptedText = srDecrypt.ReadToEnd();
+                            return Encoding.UTF8.GetBytes(decryptedText);
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error decrypting payload: {ex.Message}");
+            return null;
+        }
     }
 }
 
