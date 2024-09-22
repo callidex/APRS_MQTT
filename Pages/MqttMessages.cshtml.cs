@@ -110,7 +110,8 @@ public class MqttMessagesModel : PageModel
                         break;
                     case PortNum.TelemetryApp:
                         var telemetry = Telemetry.Parser.ParseFrom(packet.Packet.Decoded.Payload);
-                        message = $"Telemetry: press {telemetry.EnvironmentMetrics.BarometricPressure} temp: {telemetry.EnvironmentMetrics.Temperature}";
+                        if(telemetry.EnvironmentMetrics != null)
+                            message = $"Telemetry: press {telemetry.EnvironmentMetrics.BarometricPressure} temp: {telemetry.EnvironmentMetrics.Temperature}";
                         break;
                     case PortNum.TextMessageCompressedApp:
                         var textMessageCompressed = Meshtastic.Protobufs.Data.Parser.ParseFrom(packet.Packet.Decoded.Payload);
@@ -128,6 +129,12 @@ public class MqttMessagesModel : PageModel
             catch (Exception ex)
             {
                 message = ex.Message;
+                if (ex.InnerException != null)
+                {
+                    var innerMessage = ex.InnerException.Message;
+                    message += " Inner Exception: " + innerMessage;
+                }
+                _messages.Add(message);
             }   
 
             // Add the message to the list
