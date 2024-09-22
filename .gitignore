@@ -2,8 +2,9 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
-/.vs/APRS_MQTT
-/Bridge/bin/Debug/net8.0
-/Bridge/obj
-/obj
-/Bridge/config.json
+/.vs
+obj
+bin
+aprsdata.db
+/APRS_MQTT.csproj.user
+config.json
