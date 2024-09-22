@@ -147,49 +147,39 @@ public class MqttBridge
         {
             MeshPacket mp = serviceEnvelope.Packet;
             Data data = mp.Decoded;
-            Console.WriteLine($"  {data.Portnum} {data.Payload.Length} from {serviceEnvelope.Packet.From.ToString("X")}" );   
-
-            
-
-//
-//            SerializeDelimitedToStream
-
-            var ni = NodeInfo.Parser.ParseFrom(data.Payload);
-            if (ni != null)
+            var user = Meshtastic.Protobufs.User.Parser.ParseFrom(data.Payload); 
+            if(user!=null)
             {
-                Console.WriteLine($"  {ni.User.Id} {ni.User.LongName} {serviceEnvelope.Packet.From.ToString("X")}");
+                Console.WriteLine($"  {user.Id} {user.LongName} from {serviceEnvelope.Packet.From.ToString("X")}");
             }
             else
             {
-                Console.WriteLine("  NodeInfo is null");
+                Console.WriteLine("  User is null");
+            }
+            var position = Position.Parser.ParseFrom(data.Payload);
+            if(position != null)
+            {
+                Console.WriteLine($"  {position.LatitudeI}, {position.LongitudeI} from {serviceEnvelope.Packet.From.ToString("X")}");
+            }
+            else
+            {
+                Console.WriteLine("  Position is null");
             }
 
-
-           Console.WriteLine("NODE INFO ON " + serviceEnvelope.ChannelId);
-            Console.WriteLine("NODE INFO ON FROM " + serviceEnvelope.Packet.From.ToString("X"));
-            try
-            {
-                Console.WriteLine(MyToString(serviceEnvelope.Packet));
-                Console.WriteLine(serviceEnvelope.ToString());
-                var nodeInfo = NodeInfo.Parser.ParseFrom(serviceEnvelope.Packet.Decoded.Payload);
-                Console.WriteLine($" {nodeInfo.User.Id} {nodeInfo.User.LongName}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error parsing node info: " + ex.Message);
-            }
             Console.WriteLine("SE: " + serviceEnvelope.Packet.Decoded.Payload.ToString());
         }
     }
 
     private void PositionReport(ServiceEnvelope packet)
     {
+        positions.RemoveAll(x => x.From == packet.Packet.From);
         positions.Add(new PositionInfo() { Position = Position.Parser.ParseFrom(packet.Packet.Decoded.Payload), From = packet.Packet.From });
     }
 
     private void NodeInfoReport(ServiceEnvelope packet)
     {
-        nodeInfos.Add(packet);
+        if(nodeInfos.Where(x=>x.Packet.From == packet.Packet.From).Count() == 0) 
+            nodeInfos.Add(packet);
     }
     public string MyToString(object o)
     {
