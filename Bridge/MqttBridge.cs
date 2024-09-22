@@ -40,9 +40,6 @@ public class MqttBridge
             .WithCleanSession()
             .Build();
 
-
-        // var topic = "msh/bdars/2/e/bdars/#";
-
         MqttClient.ConnectedAsync += (s) =>
         {
             Console.WriteLine("Connected to MQTT Broker.");
@@ -66,7 +63,7 @@ public class MqttBridge
         {
             var message = "Unknown message.";
             Console.WriteLine(e.ApplicationMessage.Topic);
-            
+
             // decode it
             try
             {
@@ -84,25 +81,7 @@ public class MqttBridge
                         PositionReport(packet);
                         DumpInfo();
                         break;
-                    
-                    //case PortNum.TextMessageApp:
-                    //    var textMessage = Meshtastic.Protobufs.Data.Parser.ParseFrom(packet.Packet.Decoded.Payload);
-                    //    message = $"TextMessage: {textMessage.Payload.ToString()}";
-                    //    break;
 
-                    //case PortNum.TelemetryApp:
-                    //    var telemetry = Telemetry.Parser.ParseFrom(packet.Packet.Decoded.Payload);
-                    //    if (telemetry.EnvironmentMetrics != null)
-                    //        message = $"Telemetry: press {telemetry.EnvironmentMetrics.BarometricPressure} temp: {telemetry.EnvironmentMetrics.Temperature}";
-                    //    break;
-                    //case PortNum.TextMessageCompressedApp:
-                    //    var textMessageCompressed = Meshtastic.Protobufs.Data.Parser.ParseFrom(packet.Packet.Decoded.Payload);
-                    //    message = $"TextMessageCompressed: {textMessageCompressed.Payload.ToString()}";
-                    //    break;
-                    //case PortNum.WaypointApp:
-                    //    var waypoint = Waypoint.Parser.ParseFrom(packet.Packet.Decoded.Payload);
-                    //    message = $"Waypoint: {waypoint.LatitudeI}, {waypoint.LongitudeI}";
-                    //    break;
                     default:
                         Console.WriteLine($"Unhandled packet {packet.Packet.Decoded.Portnum}");
                         break;
@@ -132,6 +111,7 @@ public class MqttBridge
         var result = MqttClient.ConnectAsync(options).Result;
         if (result.ResultCode != MqttClientConnectResultCode.Success) return;
     }
+
     private void DumpInfo()
     {
         Console.WriteLine("Positions:");
@@ -145,14 +125,10 @@ public class MqttBridge
         {
             Console.WriteLine("NODE INFO ON " + serviceEnvelope.ChannelId);
             Console.WriteLine("NODE INFO ON FROM " + serviceEnvelope.Packet.From.ToString("X"));
-
-
-
             try
-            
             {
                 Console.WriteLine(MyToString(serviceEnvelope.Packet));
-                Console.WriteLine(serviceEnvelope.ToString());    
+                Console.WriteLine(serviceEnvelope.ToString());
                 var nodeInfo = NodeInfo.Parser.ParseFrom(serviceEnvelope.Packet.Decoded.Payload);
                 Console.WriteLine($" {nodeInfo.User.Id} {nodeInfo.User.LongName}");
             }
@@ -160,11 +136,7 @@ public class MqttBridge
             {
                 Console.WriteLine("Error parsing node info: " + ex.Message);
             }
-            Console.WriteLine("SE: "+serviceEnvelope.Packet.Decoded.Payload.ToString());
-
-            
-
-            
+            Console.WriteLine("SE: " + serviceEnvelope.Packet.Decoded.Payload.ToString());
         }
     }
 
@@ -175,7 +147,6 @@ public class MqttBridge
 
     private void NodeInfoReport(ServiceEnvelope packet)
     {
-
         nodeInfos.Add(packet);
     }
     public string MyToString(object o)
