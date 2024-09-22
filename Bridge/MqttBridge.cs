@@ -147,7 +147,7 @@ public class MqttBridge
         {
             MeshPacket mp = serviceEnvelope.Packet;
             Data data = mp.Decoded;
-            Console.WriteLine($"  {data.Portnum} {data.Payload.Length}");   
+            Console.WriteLine($"  {data.Portnum} {data.Payload.Length} from {serviceEnvelope.Packet.From.ToString("X")}" );   
 
             
 
