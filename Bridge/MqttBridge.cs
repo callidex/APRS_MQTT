@@ -1,23 +1,9 @@
 ﻿
 using Meshtastic.Protobufs;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Configuration.Json;
 using MQTTnet;
 using MQTTnet.Client;
-using MQTTnet.Protocol;
 using MQTTnet.Server;
-using System.Net.Sockets;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Text;
-using Google.Protobuf;
-
-public class PositionInfo
-{
-    // For Bob: Proto buf version is sealed so can't inherit
-    public Position Position { get; set; }
-    public uint From { get; set; }
-}
 
 public class MqttBridge
 {
@@ -25,49 +11,35 @@ public class MqttBridge
     readonly List<PositionInfo> positions = new List<PositionInfo>();
     readonly List<ServiceEnvelope> nodeInfos = new List<ServiceEnvelope>();
 
-    public void ConnectToMqttBroker()
+    public void ConnectToMqttBroker(IConfigurationRoot config)
     {
-
-        var config = new ConfigurationBuilder().AddJsonFile("config.json").Build();
-
         var topic = config["topic"];
-
-        var factory = new MqttFactory();
-        MqttClient = factory.CreateMqttClient();
-
+        MqttClient = CreateClient(topic);
         var options = new MqttClientOptionsBuilder()
             .WithClientId(config["name"])
             .WithTcpServer(config["mqttserver"], 1883) // Replace with your MQTT broker address and port
             .WithCredentials(config["mqttuser"], config["mqttpass"]) // Optional: add your MQTT broker username and password if needed
             .WithCleanSession()
             .Build();
+        var result = MqttClient.ConnectAsync(options).Result;
+    }
 
+    private IMqttClient CreateClient(string topic)
+    {
+        var factory = new MqttFactory();
+        MqttClient = factory.CreateMqttClient();
         MqttClient.ConnectedAsync += (s) =>
         {
             Console.WriteLine("Connected to MQTT Broker.");
-
-            var message = new MqttApplicationMessageBuilder()
-                    .WithTopic(config["publishtopic"])
-                    .WithPayload($"APRS bridge sign in {DateTime.Now:hh-mm-ss}")
-                    .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
-                    .WithRetainFlag()
-            .Build();
-
-            //MqttClient.PublishAsync(message);
-
             MqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic(topic).Build());
-
-
             return Task.CompletedTask;
         };
 
         MqttClient.ApplicationMessageReceivedAsync += e =>
         {
-            var message = "Unknown message.";
-            // decode it
             try
             {
-                var packet = Meshtastic.Protobufs.ServiceEnvelope.Parser.ParseFrom(e.ApplicationMessage.PayloadSegment);
+                var packet = ServiceEnvelope.Parser.ParseFrom(e.ApplicationMessage.PayloadSegment);
                 if (packet?.Packet.Decoded != null)
                 {
                     switch (packet.Packet.Decoded.Portnum)
@@ -85,34 +57,10 @@ public class MqttBridge
                             break;
                     }
                 }
-                else
-                {
-                    Console.WriteLine($"Encrypted packet from {packet.Packet.From.ToString("X")}");
-
-                    string psk = "1PG7OiApB1nwvP+rz05pAQ==";
-                    var dec = DecryptMeshtasticPayload(packet.Packet.Encrypted.ToByteArray(), Encoding.ASCII.GetBytes(psk), new byte[16]);
-                    Console.WriteLine(dec);
-
-                }
-
-
-
-            }
-            catch (InvalidProtocolBufferException ex)
-            {
-                message = "Invalid protocol message: " + ex.Message;
             }
             catch (Exception ex)
             {
-                message = ex.Message;
-                if (ex.InnerException != null)
-                {
-                    var innerMessage = ex.InnerException.Message;
-                    message += " Inner Exception: " + innerMessage;
-                }
             }
-
-
             return Task.CompletedTask;
         };
 
@@ -121,9 +69,7 @@ public class MqttBridge
             Console.WriteLine("Disconnected from MQTT Broker.");
             return Task.CompletedTask;
         };
-
-        var result = MqttClient.ConnectAsync(options).Result;
-        if (result.ResultCode != MqttClientConnectResultCode.Success) return;
+        return MqttClient;
     }
 
     private void DumpInfo()
@@ -132,17 +78,18 @@ public class MqttBridge
         {
             MeshPacket mp = serviceEnvelope.Packet;
             Data data = mp.Decoded;
-            var user = Meshtastic.Protobufs.User.Parser.ParseFrom(data.Payload);
-            if (user != null)
+            var user = User.Parser.ParseFrom(data.Payload);
+            if (user == null) continue;
+            var matchedPosition = positions.Where(x => x.From.ToString("X").ToLower() == serviceEnvelope.Packet.From.ToString("X").ToLower()).FirstOrDefault();
+            if (matchedPosition != null)
             {
-                var position = Position.Parser.ParseFrom(data.Payload);
-                if (position != null)
+                if (user.LongName.ToLower().StartsWith("vk4") &&
+                        user.LongName.Length > 4 &&
+                        user.LongName.Length < 7)
                 {
-                    var matchedPosition = positions.Where(x => x.From.ToString("X").ToLower() == serviceEnvelope.Packet.From.ToString("X").ToLower()).FirstOrDefault();
-                    if (matchedPosition != null)
-                    {
-                        Console.WriteLine($" MATCH  {user.Id} {user.LongName}  {matchedPosition.Position.LatitudeI}, {matchedPosition.Position.LongitudeI}");
-                    }
+                    Console.WriteLine($" MATCH  {user.Id} {user.LongName}  {matchedPosition.Position.LatitudeI}, {matchedPosition.Position.LongitudeI}");
+                    var callsign = $"{user.LongName}-11";
+                    APRS.SendAprsPacket(matchedPosition.Position.LatitudeI, matchedPosition.Position.LongitudeI, "VK4PLY-12", user.HwModel.ToString());
                 }
             }
         }
@@ -158,54 +105,6 @@ public class MqttBridge
     {
         if (nodeInfos.Where(x => x.Packet.From == packet.Packet.From).Count() == 0)
             nodeInfos.Add(packet);
-    }
-    public string MyToString(object o)
-    {
-        return GetType().GetProperties()
-            .Select(info => (info.Name, Value: info.GetValue(o, null) ?? "(null)"))
-            .Aggregate(
-                new StringBuilder(),
-                (sb, pair) => sb.AppendLine($"{pair.Name}: {pair.Value}"),
-                sb => sb.ToString());
-    }
-
-    public static byte[] DecryptMeshtasticPayload(byte[] ciphertext, byte[] key, byte[] iv)
-    {
-        try
-        {
-            using (Aes aesAlg = Aes.Create())
-            {
-                aesAlg.Key = key;
-                aesAlg.IV = iv;
-
-                // Set AES-256 properties
-                aesAlg.Mode = CipherMode.CBC;  // Meshtastic uses CBC mode
-                aesAlg.Padding = PaddingMode.PKCS7;  // Common padding mode
-
-                // Create a decryptor to perform the stream transform.
-                ICryptoTransform decryptor = aesAlg.CreateDecryptor(aesAlg.Key, aesAlg.IV);
-
-                // Create the streams used for decryption.
-                using (MemoryStream msDecrypt = new MemoryStream(ciphertext))
-                {
-                    using (CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
-                    {
-                        using (StreamReader srDecrypt = new StreamReader(csDecrypt))
-                        {
-                            // Read the decrypted bytes from the decrypting stream
-                            // and place them into a string.
-                            var decryptedText = srDecrypt.ReadToEnd();
-                            return Encoding.UTF8.GetBytes(decryptedText);
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error decrypting payload: {ex.Message}");
-            return null;
-        }
     }
 }
 
