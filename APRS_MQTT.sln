@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.10.34607.79
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "APRS_MQTT", "APRS_MQTT.csproj", "{180FEBB6-902A-4EDB-9603-08F0E5107DA2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bridge", "Bridge\Bridge.csproj", "{DABDAE84-87A2-456D-934F-600C80660948}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +11,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{180FEBB6-902A-4EDB-9603-08F0E5107DA2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{180FEBB6-902A-4EDB-9603-08F0E5107DA2}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{180FEBB6-902A-4EDB-9603-08F0E5107DA2}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{180FEBB6-902A-4EDB-9603-08F0E5107DA2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DABDAE84-87A2-456D-934F-600C80660948}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DABDAE84-87A2-456D-934F-600C80660948}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DABDAE84-87A2-456D-934F-600C80660948}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DABDAE84-87A2-456D-934F-600C80660948}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
