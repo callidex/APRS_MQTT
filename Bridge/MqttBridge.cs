@@ -69,6 +69,8 @@ public class MqttBridge
             {
                 var packet = Meshtastic.Protobufs.ServiceEnvelope.Parser.ParseFrom(e.ApplicationMessage.PayloadSegment);
                 Console.WriteLine(packet.ToString());
+                if(packet.Packet.Decoded!=null)
+                { 
                 switch (packet.Packet.Decoded.Portnum)
                 {
                     case PortNum.NodeinfoApp:
@@ -86,6 +88,12 @@ public class MqttBridge
                         Console.WriteLine($"Unhandled packet {packet.Packet.Decoded.Portnum}");
                         break;
                 }
+                }
+                else
+                {
+                    Console.WriteLine($"Encrypted packet from {packet.Packet.From.ToString("X")}");
+                }
+
             }
             catch (Exception ex)
             {
