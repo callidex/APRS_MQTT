@@ -83,12 +83,14 @@ public class MqttBridge
             var matchedPosition = positions.Where(x => x.From.ToString("X").ToLower() == serviceEnvelope.Packet.From.ToString("X").ToLower()).FirstOrDefault();
             if (matchedPosition != null)
             {
-                if (user.LongName.ToLower().StartsWith("vk4") &&
-                        user.LongName.Length > 4 &&
-                        user.LongName.Length < 7)
+                var name = user.LongName.Split(  '/', '-' )[0];
+                Console.WriteLine(name);
+                if (name.ToLower().StartsWith("vk4") &&
+                        name.Length > 4 &&
+                        name.Length < 7)
                 {
-                    Console.WriteLine($" MATCH  {user.Id} {user.LongName}  {matchedPosition.Position.LatitudeI}, {matchedPosition.Position.LongitudeI}");
-                    var callsign = $"{user.LongName}-11";
+                    Console.WriteLine($" MATCH  {user.Id} {name}  {matchedPosition.Position.LatitudeI}, {matchedPosition.Position.LongitudeI}");
+                    var callsign = $"{name}-11";
                     APRS.SendAprsPacket(matchedPosition.Position.LatitudeI, matchedPosition.Position.LongitudeI, "VK4PLY-12", user.HwModel.ToString());
                 }
             }

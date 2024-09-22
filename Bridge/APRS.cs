@@ -29,7 +29,7 @@ internal static class APRS
         string aprsServer = "rotate.aprs.net";
         int aprsPort = 14580;
         string aprsData = $"!{FormatCoordinates(latitude, longitude)} MeshBridge v1.0 {info}";
-        string aprsPacket = $"{callsign}>APRS:!{aprsData}"; // Modify as per APRS packet structure
+        string aprsPacket = $"{callsign}>APRS:{aprsData}"; // Modify as per APRS packet structure
 
         try
         {
@@ -38,6 +38,8 @@ internal static class APRS
             // Prepare the packet for sending
             byte[] data = Encoding.ASCII.GetBytes(aprsPacket + "\n");
             stream.Write(data, 0, data.Length);
+
+            //OGN123456>OGNAPP:/123456h5123.45N/00123.45E'180/025
             Console.WriteLine("Packet sent: " + aprsPacket);
         }
         catch (Exception ex)
