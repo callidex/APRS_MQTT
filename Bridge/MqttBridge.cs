@@ -71,34 +71,34 @@ public class MqttBridge
             {
                 var packet = Meshtastic.Protobufs.ServiceEnvelope.Parser.ParseFrom(e.ApplicationMessage.PayloadSegment);
                 Console.WriteLine(packet.ToString());
-                if(packet?.Packet.Decoded!=null)
-                { 
-                switch (packet.Packet.Decoded.Portnum)
+                if (packet?.Packet.Decoded != null)
                 {
-                    case PortNum.NodeinfoApp:
-                        Console.WriteLine("NodeInfoApp");
-                        NodeInfoReport(packet);
-                        DumpInfo();
-                        break;
-                    case PortNum.PositionApp:
-                        Console.WriteLine("PositionReport");
-                        PositionReport(packet);
-                        DumpInfo();
-                        break;
+                    switch (packet.Packet.Decoded.Portnum)
+                    {
+                        case PortNum.NodeinfoApp:
+                            Console.WriteLine("NodeInfoApp");
+                            NodeInfoReport(packet);
+                            DumpInfo();
+                            break;
+                        case PortNum.PositionApp:
+                            Console.WriteLine("PositionReport");
+                            PositionReport(packet);
+                            DumpInfo();
+                            break;
 
-                    default:
-                        Console.WriteLine($"Unhandled packet {packet.Packet.Decoded.Portnum}");
-                        break;
-                }
+                        default:
+                            Console.WriteLine($"Unhandled packet {packet.Packet.Decoded.Portnum}");
+                            break;
+                    }
                 }
                 else
                 {
                     Console.WriteLine($"Encrypted packet from {packet.Packet.From.ToString("X")}");
 
                     string psk = "1PG7OiApB1nwvP+rz05pAQ==";
-                    var dec = DecryptMeshtasticPayload(packet.Packet.Encrypted.ToByteArray(), Encoding.ASCII.GetBytes(psk) , new byte[16]);
+                    var dec = DecryptMeshtasticPayload(packet.Packet.Encrypted.ToByteArray(), Encoding.ASCII.GetBytes(psk), new byte[16]);
                     Console.WriteLine(dec);
-                    
+
                 }
 
 
@@ -147,23 +147,20 @@ public class MqttBridge
         {
             MeshPacket mp = serviceEnvelope.Packet;
             Data data = mp.Decoded;
-            var user = Meshtastic.Protobufs.User.Parser.ParseFrom(data.Payload); 
-            if(user!=null)
+            var user = Meshtastic.Protobufs.User.Parser.ParseFrom(data.Payload);
+            if (user != null)
             {
                 Console.WriteLine($"  {user.Id} {user.LongName} from {serviceEnvelope.Packet.From.ToString("X")}");
-            }
-            else
-            {
-                Console.WriteLine("  User is null");
-            }
-            var position = Position.Parser.ParseFrom(data.Payload);
-            if(position != null)
-            {
-                Console.WriteLine($"  {position.LatitudeI}, {position.LongitudeI} from {serviceEnvelope.Packet.From.ToString("X")}");
-            }
-            else
-            {
-                Console.WriteLine("  Position is null");
+                var position = Position.Parser.ParseFrom(data.Payload);
+                if (position != null)
+                {
+                    var matchedPosition = positions.Where(x => x.From.ToString("X").ToLower() == serviceEnvelope.Packet.From.ToString("X").ToLower()).FirstOrDefault();
+                    if (matchedPosition != null)
+                    {
+                        Console.WriteLine($" MATCH  {user.Id} {user.LongName}  {matchedPosition.Position.LatitudeI}, {matchedPosition.Position.LongitudeI}");
+                    }
+                }
+
             }
 
             Console.WriteLine("SE: " + serviceEnvelope.Packet.Decoded.Payload.ToString());
@@ -178,7 +175,7 @@ public class MqttBridge
 
     private void NodeInfoReport(ServiceEnvelope packet)
     {
-        if(nodeInfos.Where(x=>x.Packet.From == packet.Packet.From).Count() == 0) 
+        if (nodeInfos.Where(x => x.Packet.From == packet.Packet.From).Count() == 0)
             nodeInfos.Add(packet);
     }
     public string MyToString(object o)
