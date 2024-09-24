@@ -90,8 +90,8 @@ public class MqttBridge
                         name.Length < 7)
                 {
                     Console.WriteLine($" MATCH  {user.Id} {name}  {matchedPosition.Position.LatitudeI}, {matchedPosition.Position.LongitudeI}");
-                    var callsign = $"{name}-11";
-                    APRS.SendAprsPacket(matchedPosition.Position.LatitudeI, matchedPosition.Position.LongitudeI, "VK4PLY-12", user.HwModel.ToString());
+                    var callsign = $"{name}-12";
+                    APRS.SendAprsPacketAsync(matchedPosition.Position.LatitudeI, matchedPosition.Position.LongitudeI, "VK4PLY-12", user.HwModel.ToString());
                 }
             }
         }

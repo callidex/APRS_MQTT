@@ -24,27 +24,38 @@ internal static class APRS
                $"{lonDegrees:000}{lonMinutes:00}.{Math.Round(lonDecimalMinutes * 1000):000}{lonDirection}";
     }
 
-    public static void SendAprsPacket(double latitude, double longitude, string callsign, string info)
+    public async static Task SendAprsPacketAsync(double latitude, double longitude, string callsign, string info)
     {
+        string passcode = "23968";
+        string softwareName = "VK4PLY_MeshAprs";
+        string softwareVersion = "1.0";
+
         string aprsServer = "rotate.aprs.net";
         int aprsPort = 14580;
         string aprsData = $"!{FormatCoordinates(latitude, longitude)} MeshBridge v1.0 {info}";
         string aprsPacket = $"{callsign}>APRS:{aprsData}"; // Modify as per APRS packet structure
-
+        string loginMessage = $"user {callsign} pass {passcode} vers {softwareName} {softwareVersion}\n";
         try
         {
             using TcpClient client = new(aprsServer, aprsPort);
             using NetworkStream stream = client.GetStream();
-            // Prepare the packet for sending
-            byte[] data = Encoding.ASCII.GetBytes(aprsPacket + "\n");
-            stream.Write(data, 0, data.Length);
+            byte[] data = Encoding.ASCII.GetBytes(loginMessage + "\n");
+            await stream.WriteAsync(data, 0, data.Length);
+            byte[] buffer = new byte[1024]; 
+            int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+            string response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+            Console.WriteLine(response);
 
-            //OGN123456>OGNAPP:/123456h5123.45N/00123.45E'180/025
-            Console.WriteLine("Packet sent: " + aprsPacket);
+            data = Encoding.ASCII.GetBytes(aprsPacket + "\n");
+            await stream.WriteAsync(data, 0, data.Length);
+            buffer = new byte[1024];
+            bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+            response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
+            Console.WriteLine(response);
         }
         catch (Exception ex)
         {
-            Console.WriteLine("Error: " + ex.Message);
+            Console.WriteLine("Login Failed: " + ex.Message);
         }
     }
 }
