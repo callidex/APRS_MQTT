@@ -25,7 +25,8 @@ public class MqttBridge
     }
 
     private IMqttClient CreateClient(string topic)
-    {
+    { 
+
         var factory = new MqttFactory();
         MqttClient = factory.CreateMqttClient();
         MqttClient.ConnectedAsync += (s) =>
