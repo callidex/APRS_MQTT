@@ -34,7 +34,7 @@ internal static class APRS
 
         string aprsServer = "perth.aprs2.net";
         int aprsPort = 14580;
-        string aprsData = $"{FormatCoordinates(latitude, longitude)} MeshBridge v1.0 {info}";
+        string aprsData = $"{FormatCoordinates(latitude, longitude)}./A=00024 MeshBridge v1.0 {info}";
         string aprsPacket = $"{callsign}>APDR15,WIDE1-1:={aprsData}"; // Modify as per APRS packet structure
         string loginMessage = $"user {callsign} pass {passcode} vers {softwareName} {softwareVersion}\n";
         try
