@@ -3,8 +3,7 @@ using System.Text;
 
 internal static class APRS
 {
-
-    public static string FormatCoordinates(double inLat, double inLong)
+    private static string FormatCoordinates(double inLat, double inLong)
     {
         var latitude = inLat   / 10000000.0;
         var longitude = inLong / 10000000.0;
@@ -26,6 +25,30 @@ internal static class APRS
                $"/{lonDegrees:000}{lonMinutes:00}.{Math.Round(lonDecimalMinutes * 1000).ToString().Substring(0,2)}{lonDirection}";
     }
 
+    //Unused, but in case we want to create the login on the fly
+    private static int GenerateAPRSLogin(string callsign)
+    {
+        callsign = callsign.ToUpper();
+        int hash = 0x73E2; 
+
+        foreach (char c in callsign)
+        {
+            hash ^= (c << 8); 
+            for (int i = 0; i < 8; i++)
+            {
+                if ((hash & 0x8000) != 0) 
+                {
+                    hash = (hash << 1) ^ 0x1021; 
+                }
+                else
+                {
+                    hash <<= 1; 
+                }
+            }
+        }
+        return hash & 0x7FFF; 
+    }
+
     public async static Task SendAprsPacketAsync(double latitude, double longitude, string callsign, string info)
     {
         string passcode = "23968";
@@ -36,7 +59,7 @@ internal static class APRS
         int aprsPort = 14580;
         string aprsData = $"{FormatCoordinates(latitude, longitude)}./A=00024 MeshBridge v1.0 {info}";
         string aprsPacket = $"{callsign}>APDR15,WIDE1-1:={aprsData}"; // Modify as per APRS packet structure
-        string loginMessage = $"user {callsign} pass {passcode} vers {softwareName} {softwareVersion}\n";
+        string loginMessage = $"user VK4PLY-12 pass {passcode} vers {softwareName} {softwareVersion}\n";
         try
         {
             using TcpClient client = new(aprsServer, aprsPort);
