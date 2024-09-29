@@ -1,52 +1,57 @@
 ﻿using System.Net.Sockets;
 using System.Text;
 
-internal static class APRS
+public static class APRS
 {
-    private static string FormatCoordinates(double inLat, double inLong)
+    public static string FormatCoordinates(double inLat, double inLong)
     {
-        var latitude = inLat   / 10000000.0;
-        var longitude = inLong / 10000000.0;
-        string latDirection = latitude >= 0 ? "N" : "S";
-        string lonDirection = longitude >= 0 ? "E" : "W";
 
-        latitude = Math.Abs(latitude);
-        longitude = Math.Abs(longitude);
+        string latDirection = inLat >= 0 ? "N" : "S";
+        string lonDirection = inLong >= 0 ? "E" : "W";
 
-        int latDegrees = (int)latitude;
-        int latMinutes = (int)((latitude - latDegrees) );
-        double latDecimalMinutes = (latitude - latDegrees) - latMinutes;
 
-        int lonDegrees = (int)longitude;
-        int lonMinutes = (int)((longitude - lonDegrees) );
-        double lonDecimalMinutes = (longitude - lonDegrees) - lonMinutes;
+        var latitude = Math.Abs(inLat);
+        var longitude = Math.Abs(inLong);
 
-        return $"{latDegrees:00}{latMinutes:00}.{Math.Round(latDecimalMinutes * 1000).ToString().Substring(0, 2)}{latDirection}" +
-               $"/{lonDegrees:000}{lonMinutes:00}.{Math.Round(lonDecimalMinutes * 1000).ToString().Substring(0,2)}{lonDirection}";
+
+
+        int latdegrees = (int)(latitude / 10000000);
+        int londegrees = (int)(longitude / 10000000);
+
+
+
+        int latfraction = ((int)(latitude % 10000000));
+        int lonfraction = ((int)(longitude % 10000000));
+
+        float latminutes = (float)latfraction * (60.0f / 1000000.0f);
+        float lonminutes = (float)lonfraction * (60.0f / 1000000.0f);
+
+        return $"{latdegrees}{latminutes.ToString().Substring(0, 2)}.{Math.Round(latminutes * 1000).ToString().Substring(0, 2)}{latDirection}" +
+               $"/{londegrees}{lonminutes.ToString().Substring(0, 2)}.{Math.Round(lonminutes * 1000).ToString().Substring(0, 2)}{lonDirection}";
     }
 
     //Unused, but in case we want to create the login on the fly
     private static int GenerateAPRSLogin(string callsign)
     {
         callsign = callsign.ToUpper();
-        int hash = 0x73E2; 
+        int hash = 0x73E2;
 
         foreach (char c in callsign)
         {
-            hash ^= (c << 8); 
+            hash ^= (c << 8);
             for (int i = 0; i < 8; i++)
             {
-                if ((hash & 0x8000) != 0) 
+                if ((hash & 0x8000) != 0)
                 {
-                    hash = (hash << 1) ^ 0x1021; 
+                    hash = (hash << 1) ^ 0x1021;
                 }
                 else
                 {
-                    hash <<= 1; 
+                    hash <<= 1;
                 }
             }
         }
-        return hash & 0x7FFF; 
+        return hash & 0x7FFF;
     }
 
     public async static Task SendAprsPacketAsync(double latitude, double longitude, string callsign, string info)
@@ -66,7 +71,7 @@ internal static class APRS
             using NetworkStream stream = client.GetStream();
             byte[] data = Encoding.ASCII.GetBytes(loginMessage + "\n");
             await stream.WriteAsync(data, 0, data.Length);
-            byte[] buffer = new byte[1024]; 
+            byte[] buffer = new byte[1024];
             int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
             string response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
             Console.WriteLine(aprsPacket);

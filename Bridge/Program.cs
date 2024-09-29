@@ -9,8 +9,8 @@ internal partial class Program
         MqttBridge bridge = new MqttBridge();
         var config = new ConfigurationBuilder().AddJsonFile("config.json").Build();
 
-        bridge.ConnectToMqttBroker(config);
-        Console.ReadKey();
+        bridge.ConnectToMqttBrokerAsync(config);
+        Console.ReadLine();
     }
 }
 
