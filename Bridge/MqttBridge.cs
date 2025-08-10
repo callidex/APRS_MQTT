@@ -10,18 +10,18 @@ using System.Xml.Linq;
 public class MqttBridge
 {
     private IMqttClient? MqttClient;
-    readonly List<PositionInfo> positions = new List<PositionInfo>();
-    readonly List<Node> nodes = new List<Node>();
-    List<KnownNode> knownNodes = new List<KnownNode>();
+    readonly List<PositionInfo> positions = [];
+    readonly List<Node> nodes = [];
+    List<KnownNode> knownNodes = [];
     private MqttFactory factory = new MqttFactory();
-    private IConfigurationRoot _Config;
+    private IConfigurationRoot _Config = default!;
     public Task ConnectToMqttBrokerAsync(IConfigurationRoot config)
     {
         _Config = config;
         var whiteList = _Config.GetSection("whitelist").GetChildren().Select(x => x.Value).ToArray();
         return ConnectAsync();
     }
-    Task ConnectAsync()
+    Task<MqttClientConnectResult> ConnectAsync()
     {
         MqttClient = factory.CreateMqttClient();
 
@@ -98,7 +98,7 @@ public class MqttBridge
             knownNodes.Add(new KnownNode()
             {
                 From = Convert.ToUInt32(n.GetSection("node").Value, 16),
-                LongName = n.GetSection("id").Value.ToString()
+                LongName = n.GetSection("id").ToString()!
             });
         }
         return MqttClient.ConnectAsync(options);
