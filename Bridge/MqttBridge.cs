@@ -11,7 +11,7 @@ public class MqttBridge
 {
     private IMqttClient? MqttClient;
     readonly List<PositionInfo> positions = [];
-    readonly List<Node> nodes = [];
+    readonly List<Node> infoReportNodes = [];
     List<KnownNode> knownNodes = [];
     private MqttFactory factory = new MqttFactory();
     private IConfigurationRoot _Config = default!;
@@ -94,7 +94,6 @@ public class MqttBridge
         var presets = _Config.GetSection("knownnodes").GetChildren().ToList();
         foreach (var n in presets)
         {
-            Log($"Known node {n.Key} {n.GetSection("id").Value} {Convert.ToInt64(n.GetSection("node").Value, 16)}");
             knownNodes.Add(new KnownNode()
             {
                 From = Convert.ToUInt32(n.GetSection("node").Value, 16),
@@ -113,7 +112,7 @@ public class MqttBridge
 
     private void ProcessNodes()
     {
-        foreach (var node in nodes)
+        foreach (var node in infoReportNodes)
         {
             try
             {
@@ -122,7 +121,7 @@ public class MqttBridge
                 var user = User.Parser.ParseFrom(data.Payload);
                 if (user == null) continue;
 
-                LogPosition(node.ServiceEnvelope.Packet.From, user.LongName, user.HwModel.ToString());
+                LogPositionAsync(node.ServiceEnvelope.Packet.From, user.LongName, user.HwModel.ToString());
             }
             catch (Exception ex)
             {
@@ -131,11 +130,11 @@ public class MqttBridge
         }
         foreach (var node in knownNodes)
         {
-            LogPosition(node.From, node.LongName);
+            LogPositionAsync(node.From, node.LongName);
         }
     }
 
-    void LogPosition(uint from, string longName, string hw = "Meshtastic")
+    async Task LogPositionAsync(uint from, string longName, string hw = "Meshtastic")
     {
         var matchedPosition = positions.Where(x => x.From.ToString("X").ToLower() == from.ToString("X").ToLower()).FirstOrDefault();
         if (matchedPosition != null)
@@ -149,7 +148,7 @@ public class MqttBridge
             }
             Log($" MATCH  {name}  {matchedPosition.Position.LatitudeI}, {matchedPosition.Position.LongitudeI}");
             var callsign = $"{name}-12";
-            APRS.SendAprsPacketAsync(matchedPosition.Position.LatitudeI, matchedPosition.Position.LongitudeI, callsign, hw);
+            await APRS.SendAprsPacketAsync(matchedPosition.Position.LatitudeI, matchedPosition.Position.LongitudeI, callsign, hw);
             positions.RemoveAll(x => x.From == from); // will only update next time a new position comes in
         }
     }
@@ -170,8 +169,8 @@ public class MqttBridge
         var node = new Node();
         node.ServiceEnvelope = packet;
         node.From = packet.Packet.From;
-        nodes.RemoveAll(x => x.From == packet.Packet.From);
-        nodes.Add(node);
+        infoReportNodes.RemoveAll(x => x.From == packet.Packet.From);
+        infoReportNodes.Add(node);
         Log($"Node {packet.Packet.From.ToString("X").ToLower()}");
     }
 }
